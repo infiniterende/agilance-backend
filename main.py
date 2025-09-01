@@ -76,7 +76,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://main.d36t856vyywoj3.amplifyapp.com/",
+        "https://main.d36t856vyywoj3.amplifyapp.com",
+        "https://agilance.ai",
     ],
     allow_credentials=True,
     allow_methods=["*"],
