@@ -1,0 +1,16 @@
+# requirements.txt
+fastapi==0.103.1
+uvicorn[standard]==0.23.2
+pydantic<2.0
+python-multipart==0.0.6
+openai==1.97.0
+openai-whisper
+livekit-agents
+livekit-plugins-openai
+livekit-plugins-silero
+python-dotenv
+livekit-api
+sqlalchemy
+psycopg2-binary
+python-jose
+passlib[bcrypt]

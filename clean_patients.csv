@@ -1,0 +1,12 @@
+name,age,gender,phone_number,pain_quality,location,stress,sob,hypertension,hyperlipidemia,diabetes,smoking,probability
+Henry W,60,Male,6466458481,Tightness,Yes,No,Yes,No,Yes,No,Yes,18
+Philip Wu,58,Male,9179459190,Sharp,I don't know,I don't know,No,Yes,No,No,No,17
+pamela samaha,40,female,2012208089,Squezzing,yes,yes,yes,no,no,no,no,2
+Jennie C,24,Female,6463224019,Ache,middle,yes,no,yes,no,yes,no,N/A
+Henry D,53,man,2122443589,Pressure,No,no,no,Yes,yes,Yes,no,27
+Mary M,57,Female,9173539345,Burning,yes,yes,no,no,yes,no,Yes,8
+Mark C,70,male,2123334444,pin,no,yes,no,no,no,yes,yes,41
+Tim C,70,man,999999999,pressue,yes,yes,no,no,no,no,no,50
+john,70,man,3245357898,pressure,yes,yes,yes,no,no,yes,yes,73
+Bryan D,45,male,212 334 5657,sharp,yes,yes,no,no,no,no,no,30
+peter,52,male,6312632645,skipped beats ,left sided chest pain,no,yes,yes,yes,yes,no,5
