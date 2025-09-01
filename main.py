@@ -59,6 +59,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI(title="AI Health Assistant", version="1.0.0")
 
+print(app.routes)
 # Allow frontend origins
 origins = [
     "http://localhost:3000",  # frontend dev server
@@ -70,7 +71,7 @@ origins = [
 # Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
