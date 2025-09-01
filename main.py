@@ -10,6 +10,9 @@ from fastapi import (
     Security,
 )
 
+from db import engine, Base, SessionLocal
+
+import pandas as pd
 from fastapi.middleware.cors import CORSMiddleware
 from prompts import ASSESSMENT_QUESTIONS
 
@@ -135,6 +138,63 @@ class ChatSession(BaseModel):
 class UserResponse(BaseModel):
     session_id: str
     message: str
+
+
+Base.metadata.create_all(bind=engine)
+
+df = pd.read_csv("clean_patients.csv")
+
+
+# Convert 'Yes'/'No' strings to booleans
+for col in ["stress", "sob", "hypertension", "diabetes", "hyperlipidemia", "smoking"]:
+    df[col] = df[col].fillna(False)  # or True depending on your app
+    df[col] = df[col].astype(bool)  # cast to actual boolean type
+    # df[col] = df[col].map({"Yes": True, "yes": True, "no": False, "No": False})
+
+for col in ["age", "probability"]:
+    df["age"] = df["age"].fillna(0).astype(int)
+    df["probability"] = df["probability"].fillna(0).astype(int)
+
+
+# ----------------------------
+# 6. Seed function
+# ----------------------------
+def seed():
+    db: Session = SessionLocal()
+    try:
+        patients = [
+            Patient(
+                name=row["name"],
+                age=row["age"],
+                gender=row["gender"],
+                phone_number=row["phone_number"],
+                pain_quality=row["pain_quality"],
+                location=row["location"],
+                stress=row["stress"],
+                sob=row["sob"],
+                hypertension=row["hypertension"],
+                diabetes=row["diabetes"],
+                hyperlipidemia=row["hyperlipidemia"],
+                smoking=row["smoking"],
+                probability=row["probability"],
+            )
+            for _, row in df.iterrows()
+        ]
+        db.add_all(patients)
+        db.commit()
+        print("✅ Seed data inserted into Supabase!")
+    except Exception as e:
+        db.rollback()
+        print("❌ Error:", e)
+    finally:
+        db.close()
+
+
+# ----------------------------
+# 7. Run
+# ----------------------------
+
+seed()
 
 
 # In-memory storage (use database in production)
