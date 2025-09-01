@@ -74,7 +74,10 @@ origins = [
 # Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://main.d36t856vyywoj3.amplifyapp.com/",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
