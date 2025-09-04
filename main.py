@@ -398,8 +398,8 @@ async def start_chat():
 async def process_message(user_response: UserResponse):
     db = SessionLocal()
     """Process user message and return AI response"""
-    if user_response.session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    # if user_response.session_id not in sessions:
+    #     raise HTTPException(status_code=404, detail="Session not found")
 
     session = (
         db.query(ChatSession)
