@@ -39,7 +39,7 @@ import io
 import uuid
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-from models import Doctor, Patient, ChatSession
+from models import Doctor, Patient, ChatSession, Base
 from auth import verify_password, create_access_token
 
 from livekit import api
@@ -129,14 +129,14 @@ class Message(BaseModel):
     timestamp: Optional[str] = None
 
 
-class ChatSession(BaseModel):
-    session_id: str
-    messages: List[Message]
-    current_question: int = 0
-    responses: Dict[str, Any] = {}
-    risk_score: int = 0
-    assessment_complete: bool = False
-    conversation_history: List[Dict[str, str]] = []
+# class ChatSession(BaseModel):
+#     session_id: str
+#     messages: List[Message]
+#     current_question: int = 0
+#     responses: Dict[str, Any] = {}
+#     risk_score: int = 0
+#     assessment_complete: bool = False
+#     conversation_history: List[Dict[str, str]] = []
 
 
 class UserResponse(BaseModel):
