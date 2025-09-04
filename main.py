@@ -39,7 +39,7 @@ import io
 import uuid
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-from models import Doctor, Patient
+from models import Doctor, Patient, ChatSession
 from auth import verify_password, create_access_token
 
 from livekit import api
@@ -353,6 +353,7 @@ def get_risk_level_and_recommendation(score: int) -> tuple:
 @app.post("/api/chat/start")
 async def start_chat():
     """Start a new chat session"""
+    db = SessionLocal()
     session_id = (
         f"session_{len(sessions) + 1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     )
@@ -385,17 +386,27 @@ async def start_chat():
         + [{"role": "assistant", "content": welcome_response}],
     )
 
-    sessions[session_id] = session
+    db.add(session)
+    db.commit()
+    db.close()
+
+    # sessions[session_id] = session
     return {"session_id": session_id, "messages": session.messages}
 
 
 @app.post("/api/chat/message")
 async def process_message(user_response: UserResponse):
+    db = SessionLocal()
     """Process user message and return AI response"""
     if user_response.session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    session = sessions[user_response.session_id]
+    session = (
+        db.query(ChatSession)
+        .filter_by(ChatSession.session_id == user_response.session_id)
+        .first()
+    )
+    # session = sessions[user_response.session_id]
 
     # Add user message to session and conversation history
     session.messages.append(
@@ -405,11 +416,14 @@ async def process_message(user_response: UserResponse):
         {"role": "user", "content": user_response.message}
     )
 
+    db.commit()
     if session.assessment_complete:
         # Handle post-assessment conversation
         response = await get_openai_response(session.conversation_history, None)
         session.messages.append(Message(type=MessageType.ASSISTANT, content=response))
         session.conversation_history.append({"role": "assistant", "content": response})
+        db.commit()
+        db.refresh(session)
         return {"messages": session.messages}
 
     # Store response for risk calculation
@@ -523,6 +537,10 @@ Based on the conversation history, provide a comprehensive but concise summary o
             {"role": "assistant", "content": ai_response}
         )
 
+        db.commit()
+        db.refresh(session)
+        db.close()
+
     return {"messages": session.messages}
 
 
@@ -532,13 +550,28 @@ async def get_patients(db: Session = Depends(get_db)):
     return patients
 
 
-@app.get("/api/chat/{session_id}")
-async def get_chat_history(session_id: str):
-    """Get chat history for a session"""
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+@app.get("/api/chat_sessions/")
+async def get_chat_sessions(db: Session = Depends(get_db)):
+    chat_sessions = db.query(ChatSession).all()
+    return chat_sessions
 
-    return {"messages": sessions[session_id].messages}
+
+@app.get("/api/chat/{session_id}")
+async def get_chat_session(db: Session = Depends(get_db), session_id: str = None):
+    session = (
+        db.query(ChatSession).filter_by(ChatSession.session_id == session_id).first()
+    )
+
+    return {"messages": session.messages}
+
+
+# @app.get("/api/chat/{session_id}")
+# async def get_chat_history(session_id: str):
+#     """Get chat history for a session"""
+#     if session_id not in sessions:
+#         raise HTTPException(status_code=404, detail="Session not found")
+
+#     return {"messages": sessions[session_id].messages}
 
 
 @app.get("/api/health")

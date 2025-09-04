@@ -59,6 +59,18 @@ class Doctor(Base):
     hashed_password = Column(String, nullable=False)
 
 
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, unique=True, index=True, nullable=False)
+    messages = Column(JSON, default=[])  # store conversation messages
+    conversation_history = Column(JSON, default=[])  # full AI conversation
+    current_question = Column(Integer, default=0)
+    responses = Column(JSON, default={})
+    assessment_complete = Column(Boolean, default=False)
+    risk_score = Column(Integer, default=0)
+
+
 # Drop all tables
 # Base.metadata.drop_all(bind=engine)
 
@@ -76,6 +88,7 @@ def init_db():
 
     patients = session.query(Patient).all()
     doctors = session.query(Doctor).all()
+    sessions = session.query(ChatSession).all()
     for patient in patients:
         print(
             f"{patient.id}: {patient.name}, {patient.age}, {patient.gender}, "
