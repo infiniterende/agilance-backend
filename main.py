@@ -124,22 +124,6 @@ class RiskLevel(str, Enum):
     CRITICAL = "critical"
 
 
-class Message(BaseModel):
-    type: MessageType
-    content: str
-    timestamp: Optional[str] = None
-
-
-# class ChatSession(BaseModel):
-#     session_id: str
-#     messages: List[Message]
-#     current_question: int = 0
-#     responses: Dict[str, Any] = {}
-#     risk_score: int = 0
-#     assessment_complete: bool = False
-#     conversation_history: List[Dict[str, str]] = []
-
-
 class UserResponse(BaseModel):
     session_id: str
     message: str
@@ -403,7 +387,9 @@ async def start_chat():
     db.commit()
     db.refresh(session)
 
-    messages = [(message.role, message.content) for message in session.messages]
+    messages = [
+        {role: message.role, content: message.content} for message in session.messages
+    ]
 
     db.close()
     # sessions[session_id] = session
@@ -452,7 +438,10 @@ async def process_message(user_response: UserResponse):
         db.commit()
         db.refresh(session)
 
-        msgs = [(message.role, message.content) for message in session.messages]
+        msgs = [
+            {role: message.role, content: message.content}
+            for message in session.messages
+        ]
         return {"messages": msgs}
 
     # Store response for risk calculation
@@ -592,7 +581,8 @@ Based on the conversation history, provide a comprehensive but concise summary o
         db.refresh(session)
 
         session_messages = [
-            (message.role, message.content) for message in session.messages
+            {role: message.role, content: message.content}
+            for message in session.messages
         ]
         db.close()
 
