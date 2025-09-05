@@ -388,7 +388,8 @@ async def start_chat():
     db.refresh(session)
 
     messages = [
-        {role: message.role, content: message.content} for message in session.messages
+        {"role": message.role, "content": message.content}
+        for message in session.messages
     ]
 
     db.close()
@@ -439,7 +440,7 @@ async def process_message(user_response: UserResponse):
         db.refresh(session)
 
         msgs = [
-            {role: message.role, content: message.content}
+            {"role": message.role, "content": message.content}
             for message in session.messages
         ]
         return {"messages": msgs}
@@ -581,7 +582,7 @@ Based on the conversation history, provide a comprehensive but concise summary o
         db.refresh(session)
 
         session_messages = [
-            {role: message.role, content: message.content}
+            {"role": message.role, "content": message.content}
             for message in session.messages
         ]
         db.close()
