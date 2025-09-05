@@ -69,6 +69,7 @@ class Message(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("chat_sessions.id"))
     role = Column(String, nullable=False)
+    content = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
