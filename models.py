@@ -16,7 +16,7 @@ from sqlalchemy import (
 
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 
 from dotenv import load_dotenv
 
