@@ -60,12 +60,26 @@ class Doctor(Base):
     hashed_password = Column(String, nullable=False)
 
 
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("chat_sessions.id"))
+    role = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("ChatSession", back_populates="messages")
+
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(String, unique=True, index=True, nullable=False)
-    messages = Column(JSON, default=[])  # store conversation messages
-    conversation_history = Column(JSON, default=[])  # full AI conversation
+    messages = relationship(
+        "Message", back_populates="session", cascade="all, delete-orphan"
+    )
+    conversation_history = relationship(
+        "Message", back_populates="session", cascade="all, delete-orphan"
+    )
     current_question = Column(Integer, default=0)
     responses = Column(JSON, default={})
     assessment_complete = Column(Boolean, default=False)

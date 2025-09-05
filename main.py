@@ -39,7 +39,7 @@ import io
 import uuid
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-from models import Doctor, Patient, ChatSession, Base
+from models import Doctor, Patient, ChatSession, Message, Base
 from auth import verify_password, create_access_token
 
 from livekit import api
@@ -358,6 +358,14 @@ async def start_chat():
         f"session_{len(sessions) + 1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     )
 
+    session = ChatSession(
+        session_id=session_id,
+        current_question=0,
+        responses={},
+        risk_score=0,
+        assessment_complete=False,
+    )
+
     # Initial OpenAI conversation
     initial_context = [
         {
@@ -375,23 +383,30 @@ async def start_chat():
         },
     )
 
-    session = ChatSession(
+    initial_context_msg = Message(
         session_id=session_id,
-        messages=[Message(type=MessageType.ASSISTANT, content=welcome_response)],
-        current_question=0,
-        responses={},
-        risk_score=0,
-        assessment_complete=False,
-        conversation_history=initial_context
-        + [{"role": "assistant", "content": welcome_response}],
+        role=MessageType.USER,
+        content="I'm experiencing chest pain and would like to get an assessment.",
     )
+
+    session.messages.append(initial_context_msg)
+    session.conversation_history.append(initial_context_msg)
+    welcome_msg = Message(
+        session_id=session_id, role=MessageType.ASSISTANT, content=welcome_response
+    )
+
+    session.messages.append(welcome_msg)
+    session.conversation_history.append(welcome_msg)
 
     db.add(session)
     db.commit()
-    db.close()
+    db.refresh(session)
 
+    messages = [(message.role, message.content) for message in session.messages]
+
+    db.close()
     # sessions[session_id] = session
-    return {"session_id": session_id, "messages": session.messages}
+    return {"session_id": session_id, "messages": messages}
 
 
 @app.post("/api/chat/message")
@@ -402,29 +417,42 @@ async def process_message(user_response: UserResponse):
     #     raise HTTPException(status_code=404, detail="Session not found")
 
     session = (
-        db.query(ChatSession)
-        .filter_by(ChatSession.session_id == user_response.session_id)
-        .first()
+        db.query(ChatSession).filter_by(session_id == user_response.session_id).first()
     )
     # session = sessions[user_response.session_id]
 
     # Add user message to session and conversation history
-    session.messages.append(
-        Message(type=MessageType.USER, content=user_response.message)
-    )
-    session.conversation_history.append(
-        {"role": "user", "content": user_response.message}
+    new_msg = Message(
+        session_id=session.session_id,
+        role=MessageType.USER,
+        content=user_response.message,
     )
 
-    db.commit()
+    session.messages.append(new_msg)
+
+    session.conversation_history.append(new_msg)
+    # session.messages.append(
+    #     Message(type=MessageType.USER, content=user_response.message)
+    # )
+    # session.conversation_history.append(
+    #     {"role": "user", "content": user_response.message}
+    # )
+
     if session.assessment_complete:
         # Handle post-assessment conversation
         response = await get_openai_response(session.conversation_history, None)
-        session.messages.append(Message(type=MessageType.ASSISTANT, content=response))
-        session.conversation_history.append({"role": "assistant", "content": response})
+        msg = Message(
+            session_id=session.session_id, role=MessageType.ASSISTANT, content=response
+        )
+        session.messages.append(msg)
+        session.conversation_history.append(msg)
+        # session.messages.append(Message(type=MessageType.ASSISTANT, content=response))
+        # session.conversation_history.append({"role": "assistant", "content": response})
         db.commit()
         db.refresh(session)
-        return {"messages": session.messages}
+
+        msgs = [(message.role, message.content) for message in session.messages]
+        return {"messages": msgs}
 
     # Store response for risk calculation
     current_q = ASSESSMENT_QUESTIONS[session.current_question]
@@ -456,13 +484,25 @@ Based on the conversation history, provide a comprehensive but concise summary o
             None,
         )
 
-        session.messages.append(
-            Message(type=MessageType.ASSISTANT, content=ai_response)
+        ai_message = Message(
+            session_id=session.session_id,
+            role=MessageType.ASSISTANT,
+            content=ai_response,
         )
-        session.conversation_history.append(
-            {"role": "assistant", "content": ai_response}
-        )
-        db: Session = SessionLocal()
+
+        session.messages.append(ai_message)
+        session.conversation_history.append(ai_message)
+
+        db.commit()
+
+        db.refresh(session)
+        # session.messages.append(
+        #     Message(type=MessageType.ASSISTANT, content=ai_response)
+        # )
+        # session.conversation_history.append(
+        #     {"role": "assistant", "content": ai_response}
+        # )
+        # db: Session = SessionLocal()
         response = client.chat.completions.create(
             model="gpt-4.1",
             messages=[
@@ -530,18 +570,32 @@ Based on the conversation history, provide a comprehensive but concise summary o
             session.conversation_history, next_question_info
         )
 
-        session.messages.append(
-            Message(type=MessageType.ASSISTANT, content=ai_response)
+        ai_msg = Message(
+            session_id=session.session_id,
+            role=MessageType.ASSISTANT,
+            content=ai_response,
         )
-        session.conversation_history.append(
-            {"role": "assistant", "content": ai_response}
-        )
+
+        session.messages.append(ai_msg)
+        session.conversation_history.append(ai_msg)
+        # db.add(ai_msg)
+
+        # session.messages.append(
+        #     Message(type=MessageType.ASSISTANT, content=ai_response)
+        # )
+        # session.conversation_history.append(
+        #     {"role": "assistant", "content": ai_response}
+        # )
 
         db.commit()
         db.refresh(session)
+
+        session_messages = [
+            (message.role, message.content) for message in session.messages
+        ]
         db.close()
 
-    return {"messages": session.messages}
+    return {"messages": session_messages}
 
 
 @app.get("/api/patients")
