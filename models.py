@@ -95,11 +95,13 @@ class ChatSession(Base):
 # Base.metadata.drop_all(bind=engine)
 
 with engine.begin() as conn:
+    conn.execute(text("SET statement_timeout = 0;"))  # disable timeout
     conn.execute(text("DROP TABLE IF EXISTS patients CASCADE;"))
     conn.execute(text("DROP TABLE IF EXISTS doctors CASCADE;"))
     conn.execute(text("DROP TABLE IF EXISTS chat_sessions CASCADE;"))
     conn.execute(text("DROP TABLE IF EXISTS messages CASCADE;"))
 # Recreate all tables
+# Base.metadata.drop_all(engine)
 Base.metadata.create_all(bind=engine)
 print("All tables created.")
 

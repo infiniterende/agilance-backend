@@ -63,7 +63,6 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 app = FastAPI(title="AI Health Assistant", version="1.0.0")
 
-print(app.routes)
 # Allow frontend origins
 origins = [
     "http://localhost:3000",  # frontend dev server
@@ -75,11 +74,7 @@ origins = [
 # Enable CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://main.d36t856vyywoj3.amplifyapp.com",
-        "https://agilance.ai",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -387,7 +382,6 @@ async def start_chat():
     db.commit()
     db.refresh(session)
 
-    print(message)
     messages = [
         {"role": message.role, "content": message.content}
         for message in session.messages
@@ -406,7 +400,9 @@ async def process_message(user_response: UserResponse):
     #     raise HTTPException(status_code=404, detail="Session not found")
 
     session = (
-        db.query(ChatSession).filter_by(session_id == user_response.session_id).first()
+        db.query(ChatSession)
+        .filter(ChatSession.session_id == user_response.session_id)
+        .first()
     )
     # session = sessions[user_response.session_id]
 
@@ -427,9 +423,19 @@ async def process_message(user_response: UserResponse):
     #     {"role": "user", "content": user_response.message}
     # )
 
+    messages = [
+        {"role": message.role, "content": message.content}
+        for message in session.messages
+    ]
+
     if session.assessment_complete:
         # Handle post-assessment conversation
-        response = await get_openai_response(session.conversation_history, None)
+        msgs = [
+            {"role": msg.role, "content": msg.content}
+            for msg in session.conversation_history
+        ]
+        print(msgs)
+        response = await get_openai_response(messages, None)
         msg = Message(
             session_id=session.session_id, role=MessageType.ASSISTANT, content=response
         )
@@ -469,10 +475,15 @@ Risk Level: {risk_level.value.upper()}
 Recommendation: {recommendation}
 
 Based on the conversation history, provide a comprehensive but concise summary of the assessment and emphasize the recommendation. Be empathetic and clear about next steps."""
+        msgs = [
+            {"role": msg.role, "content": msg.content}
+            for msg in session.conversation_history
+        ]
+
+        print(msgs)
 
         ai_response = await get_openai_response(
-            session.conversation_history
-            + [{"role": "user", "content": assessment_prompt}],
+            msgs + [{"role": "user", "content": assessment_prompt}],
             None,
         )
 
@@ -495,6 +506,11 @@ Based on the conversation history, provide a comprehensive but concise summary o
         #     {"role": "assistant", "content": ai_response}
         # )
         # db: Session = SessionLocal()
+
+        history_serialized = [
+            {"role": m.role, "content": m.content} for m in session.conversation_history
+        ]
+
         response = client.chat.completions.create(
             model="gpt-4.1",
             messages=[
@@ -504,7 +520,7 @@ Based on the conversation history, provide a comprehensive but concise summary o
                 },
                 {
                     "role": "user",
-                    "content": f"Extract patient info as JSON with fields: name (string), age (integer), gender (string), phone_number (string), pain_quality (string), pain_location (), stress, shortness_of_breath, hypertension, diabetes, hyperlipidemia, smoking. Transcript: {session.conversation_history}",
+                    "content": f"Extract patient info as JSON with fields: name (string), age (integer), gender (string), phone_number (string), pain_quality (string), pain_location (), stress, shortness_of_breath, hypertension, diabetes, hyperlipidemia, smoking. Transcript: {history_serialized}",
                 },
             ],
             temperature=0,
@@ -558,9 +574,7 @@ Based on the conversation history, provide a comprehensive but concise summary o
             "number": session.current_question + 1,
         }
 
-        ai_response = await get_openai_response(
-            session.conversation_history, next_question_info
-        )
+        ai_response = await get_openai_response(messages, next_question_info)
 
         ai_msg = Message(
             session_id=session.session_id,
@@ -588,7 +602,7 @@ Based on the conversation history, provide a comprehensive but concise summary o
         ]
         db.close()
 
-    return {"messages": session_messages}
+        return {"messages": session_messages}
 
 
 @app.get("/api/patients")
