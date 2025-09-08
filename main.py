@@ -387,6 +387,7 @@ async def start_chat():
     db.commit()
     db.refresh(session)
 
+    print(message)
     messages = [
         {"role": message.role, "content": message.content}
         for message in session.messages
