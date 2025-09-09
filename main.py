@@ -313,17 +313,17 @@ def calculate_risk_score(responses: Dict[str, Any]) -> int:
 
 def get_risk_level_and_recommendation(score: int) -> tuple:
     """Determine risk level and recommendation based on score"""
-    if score >= 15:
+    if score >= 0.15:
         return (
             RiskLevel.CRITICAL,
             "🚨 SEEK EMERGENCY CARE IMMEDIATELY - Call 911 or go to the nearest emergency room right away. Your symptoms suggest a possible heart attack or other serious cardiac emergency.",
         )
-    elif score > 5:
+    elif score > 0.05:
         return (
             RiskLevel.HIGH,
             "⚠️ HIGH RISK - You should go to the emergency room or urgent care immediately. Do not drive yourself - have someone drive you or call for emergency transport.",
         )
-    elif score <= 5:
+    elif score <= 0.05:
         return (
             RiskLevel.LOW,
             "✅ LOWER RISK - While your risk appears lower, chest pain should still be evaluated. Schedule an appointment with your healthcare provider within the next few days. Seek immediate care if symptoms worsen.",
@@ -458,59 +458,16 @@ async def process_message(user_response: UserResponse):
 
     # Move to next question or complete assessment
     session.current_question += 1
+    print(session.current_question)
     print(session.assessment_complete)
     if session.current_question >= len(ASSESSMENT_QUESTIONS):
         # Complete assessment
         session.assessment_complete = True
-        session.risk_score = calculate_risk_score(session.responses)
-        risk_level, recommendation = get_risk_level_and_recommendation(
-            session.risk_score
-        )
-
-        # Get AI-generated summary and recommendation
-        assessment_prompt = f"""The patient has completed the chest pain assessment. Here are their responses:
-
-Risk Score: {session.risk_score}
-Risk Level: {risk_level.value.upper()}
-Recommendation: {recommendation}
-
-Based on the conversation history, provide a comprehensive but concise summary of the assessment and emphasize the recommendation. Be empathetic and clear about next steps."""
-        msgs = [
-            {"role": msg.role, "content": msg.content}
-            for msg in session.conversation_history
-        ]
-
-        print(msgs)
-
-        ai_response = await get_openai_response(
-            msgs + [{"role": "user", "content": assessment_prompt}],
-            None,
-        )
-
-        ai_message = Message(
-            session_id=session.session_id,
-            role=MessageType.ASSISTANT,
-            content=ai_response,
-        )
-
-        session.messages.append(ai_message)
-        session.conversation_history.append(ai_message)
-
-        db.commit()
-
-        db.refresh(session)
-        # session.messages.append(
-        #     Message(type=MessageType.ASSISTANT, content=ai_response)
-        # )
-        # session.conversation_history.append(
-        #     {"role": "assistant", "content": ai_response}
-        # )
-        # db: Session = SessionLocal()
+        print(session.assessment_complete)
 
         history_serialized = [
             {"role": m.role, "content": m.content} for m in session.conversation_history
         ]
-
         response = client.chat.completions.create(
             model="gpt-4.1",
             messages=[
@@ -560,12 +517,60 @@ Based on the conversation history, provide a comprehensive but concise summary o
             smoking=patient_data.get("smoking"),
             probability=risk_probability * 100,
         )
-        try:
-            db.add(patient)
-            db.commit()
-            db.refresh(patient)
-        finally:
-            db.close()
+
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
+        # session.risk_score = calculate_risk_score(session.responses)
+        risk_level, recommendation = get_risk_level_and_recommendation(risk_probability)
+
+        print(history_serialized)
+        # Get AI-generated summary and recommendation
+        assessment_prompt = f"""The patient has completed the chest pain assessment. Here are their responses:
+
+Risk Score: {risk_probability}
+Risk Level: {risk_level.value.upper()}
+Recommendation: {recommendation}
+
+Based on the conversation history, provide a comprehensive but concise summary of the assessment and emphasize the recommendation. Be empathetic and clear about next steps."""
+        msgs = [
+            {"role": msg.role, "content": msg.content}
+            for msg in session.conversation_history
+        ]
+
+        print(msgs)
+
+        ai_response = await get_openai_response(
+            msgs + [{"role": "assistant", "content": assessment_prompt}],
+            None,
+        )
+
+        ai_message = Message(
+            session_id=session.session_id,
+            role=MessageType.ASSISTANT,
+            content=ai_response,
+        )
+
+        session.messages.append(ai_message)
+        session.conversation_history.append(ai_message)
+
+        db.commit()
+
+        db.refresh(session)
+
+        messages = [
+            {"role": msg.role, "content": msg.content}
+            for msg in session.conversation_history
+        ]
+        # session.messages.append(
+        #     Message(type=MessageType.ASSISTANT, content=ai_response)
+        # )
+        # session.conversation_history.append(
+        #     {"role": "assistant", "content": ai_response}
+        # )
+        # db: Session = SessionLocal()
+
+        return {"messages": messages}
     else:
         # Ask next question using OpenAI
         next_question_info = {
