@@ -85,7 +85,9 @@ class ChatSession(Base):
         "Message", back_populates="session", cascade="all, delete-orphan"
     )
     conversation_history = relationship(
-        "Message", back_populates="session", cascade="all, delete-orphan"
+        "Message",
+        overlaps="messages",  # <--- add this
+        viewonly=True,  # optional if you don't intend to write through this relationship
     )
     current_question = Column(Integer, default=0)
     responses = Column(JSON, default={})
@@ -105,7 +107,7 @@ class ChatSession(Base):
 #     conn.execute(text("DROP TABLE IF EXISTS conversations CASCADE;"))
 # Recreate all tables
 # Base.metadata.drop_all(engine)
-Base.metadata.create_all(bind=engine, checkfirst=True)
+# Base.metadata.create_all(bind=engine, checkfirst=True)
 print("All tables created.")
 
 df = pd.read_csv("clean_patients.csv")
