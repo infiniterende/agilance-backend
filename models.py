@@ -14,6 +14,8 @@ from sqlalchemy import (
     DateTime,
 )
 
+import pandas as pd
+
 from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
@@ -22,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 # Read the database URL from environment variable
-DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
+DATABASE_URL = os.getenv("DIRECT_URL")
 # Create engine
 print(DATABASE_URL)
 engine = create_engine(DATABASE_URL)
@@ -94,21 +96,76 @@ class ChatSession(Base):
 # Drop all tables
 # Base.metadata.drop_all(bind=engine)
 
-with engine.begin() as conn:
-    conn.execute(text("SET statement_timeout = 0;"))  # disable timeout
-    conn.execute(text("DROP TABLE IF EXISTS patients CASCADE;"))
-    conn.execute(text("DROP TABLE IF EXISTS doctors CASCADE;"))
-    conn.execute(text("DROP TABLE IF EXISTS chat_sessions CASCADE;"))
-    conn.execute(text("DROP TABLE IF EXISTS messages CASCADE;"))
+# with engine.begin() as conn:
+#     conn.execute(text("SET statement_timeout = 0;"))  # disable timeout
+#     conn.execute(text("DROP TABLE IF EXISTS patients CASCADE;"))
+#     conn.execute(text("DROP TABLE IF EXISTS doctors CASCADE;"))
+#     conn.execute(text("DROP TABLE IF EXISTS chat_sessions CASCADE;"))
+#     conn.execute(text("DROP TABLE IF EXISTS messages CASCADE;"))
+#     conn.execute(text("DROP TABLE IF EXISTS conversations CASCADE;"))
 # Recreate all tables
-# Base.metadata.drop_all(engine)
-Base.metadata.create_all(bind=engine)
+Base.metadata.drop_all(engine)
+Base.metadata.create_all(bind=engine, checkfirst=True)
 print("All tables created.")
+
+df = pd.read_csv("clean_patients.csv")
+
+
+# Convert 'Yes'/'No' strings to booleans
+for col in ["stress", "sob", "hypertension", "diabetes", "hyperlipidemia", "smoking"]:
+    df[col] = df[col].fillna(False)  # or True depending on your app
+    df[col] = df[col].astype(bool)  # cast to actual boolean type
+    # df[col] = df[col].map({"Yes": True, "yes": True, "no": False, "No": False})
+
+for col in ["age", "probability"]:
+    df["age"] = df["age"].fillna(0).astype(int)
+    df["probability"] = df["probability"].fillna(0).astype(int)
+
+
+# ----------------------------
+# 6. Seed function
+# ----------------------------
+def seed():
+    db: Session = SessionLocal()
+    try:
+        patients = [
+            Patient(
+                name=row["name"],
+                age=row["age"],
+                gender=row["gender"],
+                phone_number=row["phone_number"],
+                pain_quality=row["pain_quality"],
+                location=row["location"],
+                stress=row["stress"],
+                sob=row["sob"],
+                hypertension=row["hypertension"],
+                diabetes=row["diabetes"],
+                hyperlipidemia=row["hyperlipidemia"],
+                smoking=row["smoking"],
+                probability=row["probability"],
+            )
+            for _, row in df.iterrows()
+        ]
+        db.add_all(patients)
+        db.commit()
+        print("✅ Seed data inserted into Supabase!")
+    except Exception as e:
+        db.rollback()
+        print("❌ Error:", e)
+    finally:
+        db.close()
+
+
+# ----------------------------
+# 7. Run
+# ----------------------------
+
+seed()
 
 
 # Create tables in the database
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 
     patients = session.query(Patient).all()
     doctors = session.query(Doctor).all()

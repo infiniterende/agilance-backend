@@ -1,125 +1,66 @@
-import sqlite3
-from typing import Optional
-from dataclasses import dataclass
-from contextlib import contextmanager
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+from models import Patient
 
-
-@dataclass
-class Patient:
-    id: str
-    age: int
-    name: str
-    gender: str
-    phone_number: str
-    pain_quality: str
-    location: str
-    stress: bool
-    sob: bool
-    hypertension: bool
-    hyperlipidemia: bool
-    diabetes: bool
-    smoking: bool
-    probability: int
+load_dotenv()
+dotenv_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=dotenv_path)
+DATABASE_URL = os.getenv("DIRECT_URL")
+# Replace with your actual database URL
+DATABASE_URL = os.getenv("DIRECT_URL")
 
 
 class DatabaseDriver:
-    def __init__(self, db_path: str = "auto_db.sqlite"):
-        self.db_path = db_path
-        self._init_db()
-
-    @contextmanager
-    def _get_connection(self):
-        conn = sqlite3.connect(self.db_path)
-        try:
-            yield conn
-        finally:
-            conn.close()
-
-    def _init_db(self):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-
-            # Create cars table
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS patients (
-                    id SERIAL PRIMARY KEY,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    name VARCHAR(100),
-                    gender VARCHAR(100),
-                    age TEXT NOT NULL,
-                    phone_number VARCHAR(100),
-                    pain_quality TEXT NOT NULL,
-                    location TEXT NOT NULL,
-                    stress BOOLEAN NOT NULL,
-                    sob BOOLEAN NOT NULL,
-                    hypertension BOOLEAN NOT NULL,
-                    diabetes BOOLEAN NOT NULL,
-                    hyperlipidemia BOOLEAN NOT NULL,
-                    smoking BOOLEAN NOT NULL,
-                    probability INTEGER 
-                )
-            """
-            )
-            conn.commit()
+    def __init__(self):
+        self.engine = create_engine(DATABASE_URL)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        Base = declarative_base()
 
     def create_patient(
         self,
-        name,
-        gender,
-        age,
-        pain_quality,
-        location,
-        stress,
-        sob,
-        hypertension,
-        diabetes,
-        hyperlipidemia,
-        smoking,
-        probability,
+        name: str,
+        gender: str,
+        age: int,
+        phone_number: str,
+        pain_quality: str,
+        location: str,
+        stress: bool,
+        sob: bool,
+        hypertension: bool,
+        diabetes: bool,
+        hyperlipidemia: bool,
+        smoking: bool,
+        probability: int,
     ) -> Patient:
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-    INSERT INTO patients (
-        name, gender, age, pain_quality, location, stress, sob, hypertension, diabetes, hyperlipidemia, smoking, probability
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-                (
-                    name,
-                    gender,
-                    age,
-                    pain_quality,
-                    location,
-                    stress,
-                    sob,
-                    hypertension,
-                    diabetes,
-                    hyperlipidemia,
-                    smoking,
-                    probability,
-                ),
+        with self.SessionLocal() as session:
+            patient = Patient(
+                name=name,
+                gender=gender,
+                age=age,
+                phone_number=phone_number,
+                pain_quality=pain_quality,
+                location=location,
+                stress=stress,
+                sob=sob,
+                hypertension=hypertension,
+                diabetes=diabetes,
+                hyperlipidemia=hyperlipidemia,
+                smoking=smoking,
+                probability=probability,
             )
-            conn.commit()
-            return Patient(
-                name,
-                gender,
-                age,
-                pain_quality,
-                location,
-                stress,
-                sob,
-                hypertension,
-                diabetes,
-                hyperlipidemia,
-                smoking,
-                probability,
-            )
+            session.add(patient)
+            session.commit()
+            session.refresh(patient)
+            return patient
 
-    def get_patients(self) -> Optional[Patient]:
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM patients")
-            rows = cursor.fetchall()
-            return rows
+    def get_patients(self) -> list[Patient]:
+        with self.SessionLocal() as session:
+            return session.query(Patient).all()
+
+    def get_patient_by_id(self, patient_id: int) -> Patient | None:
+        with self.SessionLocal() as session:
+            return session.query(Patient).filter(Patient.id == patient_id).first()

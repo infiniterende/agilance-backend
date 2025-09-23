@@ -10,6 +10,7 @@ from fastapi import (
     Security,
 )
 
+
 from datetime import datetime
 from db import engine, Base, SessionLocal
 
@@ -640,6 +641,65 @@ async def get_chat_session(db: Session = Depends(get_db), session_id: str = None
 #     return {"messages": sessions[session_id].messages}
 
 
+@app.post("/api/voice")
+async def process_voice(messages):
+    db = SessionLocal()
+
+    response = client.chat.completions.create(
+        model="gpt-4.1",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a medical assistant AI that extracts structured patient data.",
+            },
+            {
+                "role": "user",
+                "content": f"Extract patient info as JSON with fields: name (string), age (integer), gender (string), phone_number (string), pain_quality (string), pain_location (), stress, shortness_of_breath, hypertension, diabetes, hyperlipidemia, smoking. Transcript: {messages}",
+            },
+        ],
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+
+    patient_data = json.loads(response.choices[0].message.content)
+    print(patient_data)
+    risk_probability = cadc_clinical_risk(
+        age=patient_data.get("age"),
+        male=patient_data.get("gender"),
+        chest_pain_type=classify_chest_pain(
+            patient_data.get("location"),
+            patient_data.get("trigger"),
+            patient_data.get("relief"),
+        ),
+        diabetes=patient_data.get("diabetes"),
+        hypertension=patient_data.get("hypertension"),
+        dyslipidaemia=patient_data.get("hyperlipidemia"),
+        smoking=patient_data.get("smoking"),
+    )
+
+    print(risk_probability)
+
+    patient = Patient(
+        name=patient_data.get("name"),
+        age=patient_data.get("age"),
+        gender=patient_data.get("gender"),
+        phone_number=patient_data.get("phone_number"),
+        pain_quality=patient_data.get("pain_quality"),
+        location=patient_data.get("pain_location"),
+        stress=patient_data.get("stress"),
+        sob=patient_data.get("shortness_of_breath"),
+        hypertension=patient_data.get("hypertension"),
+        diabetes=patient_data.get("diabetes"),
+        hyperlipidemia=patient_data.get("hyperlipidemia"),
+        smoking=patient_data.get("smoking"),
+        probability=risk_probability * 100,
+    )
+
+    db.add(patient)
+    db.commit()
+    db.refresh(patient)
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
@@ -1067,7 +1127,7 @@ async def get_token(name: str = Query(...), room: str = Query(default=None)):
         .with_name(name)
         .with_grants(api.VideoGrants(room_join=True, room=room))
     )
-
+    print(token)
     return {"token": token.to_jwt(), "room": room}
 
 
@@ -1100,10 +1160,9 @@ def login(
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({"sub": doctor.email})
-    return {"access_token": token, "token_type": "bearer"}
+    return {"access_token": token, doctor: doctor, "token_type": "bearer"}
 
 
-# if __name__ == "__main__":
-#     import uvicorn
+if __name__ == "__main__":
 
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

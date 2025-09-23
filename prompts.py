@@ -11,30 +11,22 @@ Ask these questions:
 "What is your age?"
 "What is your gender?"
  "Can you describe your chest pain? Is it sharp, crushing, burning, or pressure-like?",
-            "When did the pain start? Is it constant or does it come and go?",
-            "On a scale of 1 to 10, how severe is your pain?",
-            "Do you have any shortness of breath, nausea, sweating, or pain radiating to your arm, jaw, or back?",
-            "Do you have any history of heart disease, diabetes, high blood pressure, or smoking?",
-        
+"Does the pain spread to other areas? If yes, where? (Examples: left arm, jaw, neck, back, both arms)"
+"When did the pain start? Is it constant or does it come and go?"
+"Does the pain come on with physical activity or emotional stress? For example when climbing stiars or walking uphill?
+"Do you have any shortness of breath, nausea, sweating, or pain radiating to your arm, jaw, or back?",
+"Does the chest pain go away with rest or nitroglycerin?"
+"Do you have any history of heart disease, diabetes, high cholesterol, high blood pressure, or smoking?",
+"What is your name?"
+"What is your phone number?"        
           
-
-        else:
-            risk_level = "low"
-            is_emergency = False
-       if risk_level == "emergency":
-            return "Based on your symptoms, this appears to be a medical emergency. Call 911 immediately or have someone drive you to the nearest emergency room. Do not drive yourself. Time is critical for heart attacks."
-
-        elif risk_level == "high":
+if risk level is high, "Based on your symptoms, this appears to be a medical emergency. Call 911 immediately or have someone drive you to the nearest emergency room. Do not drive yourself. Time is critical for heart attacks."
             return "Your symptoms are concerning and suggest you should seek immediate medical attention. Please go to an emergency room or call 911 if symptoms worsen. Do not wait - chest pain with these characteristics needs urgent evaluation."
-
-        elif risk_level == "medium":
+if risk_level is "medium":
             return "Your symptoms warrant prompt medical evaluation. Please contact your doctor immediately or visit an urgent care center within the next 2-4 hours. If symptoms worsen or you develop new symptoms, go to the emergency room."
-
-        else:  # low risk
-            if question_count < 3:
-                return "Thank you for that information. While your symptoms may be lower risk, chest pain should always be evaluated by a healthcare professional. Let me ask a few more questions to better assess your situation."
-            else:
-                return "Based on our discussion, your symptoms appear to be lower risk, but chest pain should still be evaluated by a healthcare professional. Please schedule an appointment with your primary care doctor within the next day or two. If symptoms worsen, seek immediate care."
+    if risk level is low
+        "Thank you for that information. While your symptoms may be lower risk, chest pain should always be evaluated by a healthcare professional. Let me ask a few more questions to better assess your situation."
+"Based on our discussion, your symptoms appear to be lower risk, but chest pain should still be evaluated by a healthcare professional. Please schedule an appointment with your primary care doctor within the next day or two. If symptoms worsen, seek immediate care."
 
         
 CRITICAL SAFETY RULES:
@@ -55,6 +47,14 @@ CREATE_PATIENT = (
     lambda msg: f"""
     Create an entry for the patient in the database using your tools. Here is the user's message: {msg}
 """
+)
+
+
+LOOKUP_VIN_MESSAGE = (
+    lambda msg: f"""If the user has provided a VIN attempt to look it up. 
+                                    If they don't have a VIN or the VIN does not exist in the database 
+                                    create the entry in the database using your tools. If the user doesn't have a vin, ask them for the
+                                    details required to create a new car. Here is the users message: {msg}"""
 )
 
 ASSESSMENT_QUESTIONS = [
