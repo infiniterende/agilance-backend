@@ -104,7 +104,7 @@ class ChatSession(Base):
 #     conn.execute(text("DROP TABLE IF EXISTS messages CASCADE;"))
 #     conn.execute(text("DROP TABLE IF EXISTS conversations CASCADE;"))
 # Recreate all tables
-Base.metadata.drop_all(engine)
+# Base.metadata.drop_all(engine)
 Base.metadata.create_all(bind=engine, checkfirst=True)
 print("All tables created.")
 
