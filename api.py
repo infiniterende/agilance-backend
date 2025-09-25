@@ -4,6 +4,8 @@ from typing import Annotated
 from models import Patient
 from db_driver import DatabaseDriver
 
+from db import SessionLocal
+
 DB = DatabaseDriver()
 
 from calculate_cad_score import cadc_clinical_risk
@@ -42,17 +44,17 @@ class AssistantFnc(llm.FunctionContext):
         Fields:
         - name
         - age
-        - gender
+        - gender 
         - phone_number
         - pain_quality
-        - location
+        - location (True/False) True if substernal else False
         - stress (True/False)
         - sob (True/False)
         - hypertension (True/False)
         - hyperlipidemia (True/False)
         - diabetes (True/False)
         - smoking (True/False)
-        - probability (integer)
+        - probability (float)
 
         Transcript:
         {transcript}
@@ -97,9 +99,11 @@ class AssistantFnc(llm.FunctionContext):
     ):
         db = SessionLocal()
 
+        male = 1 if gender == "male" else 0
+
         risk_probability = cadc_clinical_risk(
             age,
-            male=gender,
+            male=male,
             chest_pain_type=classify_chest_pain(
                 location,
                 trigger,

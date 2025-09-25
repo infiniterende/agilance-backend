@@ -13,6 +13,52 @@ import asyncio
 from db import SessionLocal
 
 db = SessionLocal()
+from datetime import datetime
+
+
+async def handle_user_message(msg: llm.ChatMessage, assistant_fnc: AssistantFnc):
+    with SessionLocal() as db:
+        existing_sessions = db.query(ChatSession).count()
+        session_id = f"session_{existing_sessions + 1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        # Retrieve or create ChatSession
+        chat_session = (
+            db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+        )
+        if not chat_session:
+            chat_session = ChatSession(
+                session_id=session_id,
+                current_question=0,
+                responses={},
+                risk_score=0,
+                assessment_complete=False,
+                messages=[],
+                conversation_history=[],
+            )
+            db.add(chat_session)
+
+        # Create user message
+        user_msg = Message(session_id=session_id, role="user", content=msg.content)
+        db.add(user_msg)
+
+        # Update session state
+        chat_session.messages.append(user_msg)
+        chat_session.conversation_history.append(user_msg)
+        chat_session.current_question += 1
+
+        # Complete assessment if finished
+        if chat_session.current_question >= 10 and not chat_session.assessment_complete:
+            chat_session.assessment_complete = True
+            conversation_history = [
+                m.content for m in chat_session.conversation_history
+            ]
+            patient_data = await assistant_fnc.extract_patient_data(
+                conversation_history
+            )
+            await assistant_fnc.create_patient(**patient_data)
+
+        db.commit()
+        db.refresh(chat_session)
 
 
 async def entrypoint(ctx: JobContext):
@@ -37,75 +83,11 @@ async def entrypoint(ctx: JobContext):
 
     @session.on("user_speech_committed")
     def on_user_speech_committed(msg: llm.ChatMessage):
-        # Convert content list to string if needed
         if isinstance(msg.content, list):
             msg.content = "\n".join(
                 "[image]" if isinstance(x, llm.ChatImage) else x for x in msg
             )
-
-        asyncio.create_task(handle_user_message(msg))
-
-        # Use context manager for DB session
-
-        async def handle_user_message(msg: llm.ChatMessage):
-            db = SessionLocal()
-            existing_sessions = db.query(ChatSession).count()
-            session_id = f"session_{existing_sessions + 1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-            # Retrieve or create ChatSession
-            chat_session = (
-                db.query(ChatSession)
-                .filter(ChatSession.session_id == session_id)
-                .first()
-            )
-            if not chat_session:
-                chat_session = ChatSession(
-                    session_id=session_id,
-                    current_question=0,
-                    responses={},
-                    risk_score=0,
-                    assessment_complete=False,
-                    messages=[],
-                    conversation_history=[],
-                )
-
-            # Create messages
-            user_msg = Message(session_id=session_id, role="user", content=msg.content)
-            welcome_msg = Message(
-                session_id=session_id, role="assistant", content=WELCOME_MESSAGE
-            )
-
-            # Append messages to session
-            chat_session.messages.extend([user_msg, welcome_msg])
-            chat_session.conversation_history.extend([user_msg, welcome_msg])
-            chat_session.current_question += 1
-
-            # Save session
-            db.add(chat_session)
-            db.commit()
-            db.refresh(chat_session)
-
-            # If assessment is complete, extract patient data and save
-            if (
-                chat_session.current_question >= 10
-                and not chat_session.assessment_complete
-            ):
-                chat_session.assessment_complete = True
-                db.add(chat_session)
-                db.commit()
-
-                # Extract patient data via LLM
-                conversation_history = [
-                    m.content for m in chat_session.conversation_history
-                ]
-                patient_data = await assistant_fnc.extract_patient_data(
-                    conversation_history
-                )
-
-                print(patient_data)
-
-                # Create patient in DB
-                await assistant_fnc.create_patient(**patient_data)
+        asyncio.create_task(handle_user_message(msg, assistant_fnc))
 
 
 if __name__ == "__main__":
