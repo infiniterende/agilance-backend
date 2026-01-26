@@ -10,7 +10,7 @@ from fastapi import (
     Security,
 )
 
-
+from sqlalchemy import text
 from datetime import datetime
 from db import engine, Base, SessionLocal
 
@@ -144,6 +144,25 @@ for col in ["age", "probability"]:
 # ----------------------------
 # 6. Seed function
 # ----------------------------
+
+
+def clear_db():
+    db = SessionLocal()
+    try:
+        db.execute(
+            text(
+                "TRUNCATE TABLE patients, chat_sessions, messages RESTART IDENTITY CASCADE;"
+            )
+        )
+        db.commit()
+        print("✅ Database cleared")
+    except Exception as e:
+        db.rollback()
+        print("❌ Error clearing DB:", e)
+    finally:
+        db.close()
+
+
 def seed():
     db: Session = SessionLocal()
     try:
@@ -179,7 +198,8 @@ def seed():
 # 7. Run
 # ----------------------------
 
-seed()
+# clear_db()
+# seed()
 
 
 # In-memory storage (use database in production)

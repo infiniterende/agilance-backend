@@ -9,9 +9,9 @@ from models import Patient
 load_dotenv()
 dotenv_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=dotenv_path)
-DATABASE_URL = os.getenv("DIRECT_URL")
+DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
 # Replace with your actual database URL
-DATABASE_URL = os.getenv("DIRECT_URL")
+DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
 
 
 class DatabaseDriver:

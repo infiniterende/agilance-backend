@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 # Read the database URL from environment variable
-DATABASE_URL = os.getenv("DIRECT_URL")
+DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
 # Create engine
 print(DATABASE_URL)
 engine = create_engine(DATABASE_URL)
@@ -162,7 +162,7 @@ def seed():
 # 7. Run
 # ----------------------------
 
-seed()
+# seed()
 
 
 # Create tables in the database
@@ -182,6 +182,6 @@ def init_db():
         )
 
 
-if __name__ == "__main__":
-    init_db()
-    print("Tables created!")
+# if __name__ == "__main__":
+# init_db()
+# print("Tables created!")
