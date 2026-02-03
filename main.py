@@ -66,6 +66,7 @@ app = FastAPI(title="AI Health Assistant", version="1.0.0")
 
 # Allow frontend origins
 origins = [
+    "https://agilance-frontend.vercel.app",
     "http://localhost:3000",  # frontend dev server
     "https://api.agilance.org",
     "https://main.d36t856vyywoj3.amplifyapp.com",  # production frontend
